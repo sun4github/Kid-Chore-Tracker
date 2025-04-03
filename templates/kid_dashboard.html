@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Kid Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="text-3xl font-bold mb-6 text-gray-800">Your Dashboard, {{ kid_username }}!</h1>
+
+<div class="mb-8">
+    <h2 class="text-2xl font-semibold mb-4 text-gray-700">Your Earnings Summary</h2>
+     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-lg font-semibold text-blue-700 mb-2">Total Balance</h3>
+            <p class="text-2xl font-bold text-black">{{ summaries.get('balance') | currencyformat }}</p>
+        </div>
+         <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-lg font-semibold text-green-700 mb-2">Total Earned</h3>
+            <p class="text-xl font-medium text-green-800">{{ summaries.get('earned') | currencyformat }}</p>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-lg font-semibold text-red-700 mb-2">Total Spent</h3>
+            <p class="text-xl font-medium text-red-800">{{ summaries.get('spent') | currencyformat }}</p>
+        </div>
+         <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-lg font-semibold text-purple-700 mb-2">Total Invested</h3>
+            <p class="text-xl font-medium text-purple-800">{{ summaries.get('invested') | currencyformat }}</p>
+        </div>
+         <div class="bg-white p-4 rounded-lg shadow">
+            <h3 class="text-lg font-semibold text-orange-700 mb-2">Total Penalties</h3>
+            <p class="text-xl font-medium text-orange-800">{{ summaries.get('punishment') | currencyformat }}</p>
+        </div>
+    </div>
+</div>
+
+
+<div>
+    <h2 class="text-2xl font-semibold mb-4 text-gray-700">Your Tasks</h2>
+    {% if tasks %}
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <ul class="divide-y divide-gray-200">
+            {% for task in tasks %}
+             {# Determine background color based on status #}
+            {% set bg_color = 'bg-white' %}
+            {% if task.status == 'complete' %}
+                {% set bg_color = 'bg-green-50' %}
+            {% elif task.status == 'failed' %}
+                {% set bg_color = 'bg-red-50' %}
+            {% elif task.status == 'incomplete' %}
+                {% set bg_color = 'bg-yellow-50' %}
+            {% endif %}
+
+             <li class="px-4 py-4 sm:px-6 {{ bg_color }}">
+                <div class="flex items-center justify-between flex-wrap">
+                    <div class="truncate flex-grow mr-4 mb-2 sm:mb-0">
+                        <div class="flex text-sm">
+                             <p class="text-gray-900 font-medium">Task from {{ task.parent_username }}</p>
+                        </div>
+                        <div class="mt-1 flex items-center text-sm text-gray-700">
+                            <p class="truncate">{{ task.description }}</p>
+                        </div>
+                         <div class="mt-1 text-xs text-gray-500">
+                            Potential Reward: {{ task.monetary_value | currencyformat }}
+                            {% if task.status == 'incomplete' %}
+                                | Deadline: {{ task.deadline_datetime | datetimeformat('%Y-%m-%d %H:%M') }}
+                            {% endif %}
+                         </div>
+                    </div>
+                    <div class="ml-0 sm:ml-4 flex-shrink-0 text-right">
+                        {# --- INCOMPLETE Tasks --- #}
+                        {% if task.status == 'incomplete' %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                Pending
+                            </span>
+                            <p class="text-xs text-gray-500 mt-1">Complete by deadline!</p>
+                        {# --- COMPLETE Tasks --- #}
+                        {% elif task.status == 'complete' %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Complete ({{ task.completion_level }}%)
+                            </span>
+                             <p class="text-xs text-gray-600 mt-1">You Earned: <span class="font-medium text-green-700">{{ task.calculated_payment | currencyformat }}</span></p>
+                             <p class="text-xs text-gray-500 mt-1">Completed: {{ task.completion_datetime | datetimeformat('%Y-%m-%d') }}</p>
+                        {# --- FAILED Tasks --- #}
+                        {% elif task.status == 'failed' %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                Failed
+                            </span>
+                            {% if task.has_punishment and task.punishment_value %}
+                                <p class="text-xs text-red-600 mt-1">Penalty Applied</p>
+                            {% else %}
+                                 <p class="text-xs text-gray-500 mt-1">No penalty applied</p>
+                            {% endif %}
+                             <p class="text-xs text-gray-500 mt-1">Marked: {{ task.completion_datetime | datetimeformat('%Y-%m-%d') }}</p> {# Using completion_datetime for failure time #}
+                        {% endif %}
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% else %}
+    <p class="text-gray-600 bg-white p-4 rounded-lg shadow">You don't have any tasks assigned yet.</p>
+    {% endif %}
+</div>
+
+{% endblock %}
