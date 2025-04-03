@@ -8,88 +8,84 @@
 <div class="mb-8">
     <h2 class="text-2xl font-semibold mb-4 text-gray-700">Your Earnings Summary</h2>
      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div class="bg-white p-4 rounded-lg shadow">
-            <h3 class="text-lg font-semibold text-blue-700 mb-2">Total Balance</h3>
-            <p class="text-2xl font-bold text-black">{{ summaries.get('balance') | currencyformat }}</p>
-        </div>
-         <div class="bg-white p-4 rounded-lg shadow">
-            <h3 class="text-lg font-semibold text-green-700 mb-2">Total Earned</h3>
-            <p class="text-xl font-medium text-green-800">{{ summaries.get('earned') | currencyformat }}</p>
-        </div>
-        <div class="bg-white p-4 rounded-lg shadow">
-            <h3 class="text-lg font-semibold text-red-700 mb-2">Total Spent</h3>
-            <p class="text-xl font-medium text-red-800">{{ summaries.get('spent') | currencyformat }}</p>
-        </div>
-         <div class="bg-white p-4 rounded-lg shadow">
-            <h3 class="text-lg font-semibold text-purple-700 mb-2">Total Invested</h3>
-            <p class="text-xl font-medium text-purple-800">{{ summaries.get('invested') | currencyformat }}</p>
-        </div>
-         <div class="bg-white p-4 rounded-lg shadow">
-            <h3 class="text-lg font-semibold text-orange-700 mb-2">Total Penalties</h3>
-            <p class="text-xl font-medium text-orange-800">{{ summaries.get('punishment') | currencyformat }}</p>
-        </div>
+        <div class="bg-white p-4 rounded-lg shadow"> <h3 class="text-lg font-semibold text-blue-700 mb-2">Total Balance</h3> <p class="text-2xl font-bold text-black">{{ summaries.get('balance') | currencyformat }}</p> </div>
+        <div class="bg-white p-4 rounded-lg shadow"> <h3 class="text-lg font-semibold text-green-700 mb-2">Total Earned</h3> <p class="text-xl font-medium text-green-800">{{ summaries.get('earned') | currencyformat }}</p> </div>
+        <div class="bg-white p-4 rounded-lg shadow"> <h3 class="text-lg font-semibold text-red-700 mb-2">Total Spent</h3> <p class="text-xl font-medium text-red-800">{{ summaries.get('spent') | currencyformat }}</p> </div>
+        <div class="bg-white p-4 rounded-lg shadow"> <h3 class="text-lg font-semibold text-purple-700 mb-2">Total Invested</h3> <p class="text-xl font-medium text-purple-800">{{ summaries.get('invested') | currencyformat }}</p> </div>
+        <div class="bg-white p-4 rounded-lg shadow"> <h3 class="text-lg font-semibold text-orange-700 mb-2">Total Penalties</h3> <p class="text-xl font-medium text-orange-800">{{ summaries.get('punishment') | currencyformat }}</p> </div>
     </div>
 </div>
 
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
 
-<div>
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4 text-gray-700">Request Spending Money</h2>
+        <form action="{{ url_for('request_spending') }}" method="POST">
+            <div class="mb-4">
+                <label for="request_amount" class="block text-sm font-medium text-gray-700">Amount ($)</label>
+                <input type="number" id="request_amount" name="request_amount" required step="0.01" min="0.01"
+                       class="mt-1 focus:ring-purple-500 focus:border-purple-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="e.g., 5.00">
+            </div>
+            <div class="mb-4">
+                <label for="request_reason" class="block text-sm font-medium text-gray-700">Reason (Optional)</label>
+                <textarea id="request_reason" name="request_reason" rows="2" maxlength="200"
+                          class="mt-1 shadow-sm focus:ring-purple-500 focus:border-purple-500 block w-full sm:text-sm border border-gray-300 rounded-md p-2" placeholder="What is it for?"></textarea>
+            </div>
+            <button type="submit" class="w-full bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">
+                Submit Request
+            </button>
+        </form>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <h2 class="text-xl font-semibold mb-4 text-gray-700">Add Savings Goal</h2>
+        <form action="{{ url_for('add_goal') }}" method="POST">
+            <div class="mb-4">
+                <label for="goal_name" class="block text-sm font-medium text-gray-700">Goal Name</label>
+                <input type="text" id="goal_name" name="goal_name" required maxlength="100"
+                       class="mt-1 focus:ring-teal-500 focus:border-teal-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="e.g., New Bike">
+            </div>
+            <div class="mb-4">
+                <label for="target_amount" class="block text-sm font-medium text-gray-700">Target Amount ($)</label>
+                <input type="number" id="target_amount" name="target_amount" required step="0.01" min="0.01"
+                       class="mt-1 focus:ring-teal-500 focus:border-teal-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="e.g., 150.00">
+            </div>
+            <button type="submit" class="w-full bg-teal-500 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">
+                Add Goal
+            </button>
+        </form>
+    </div>
+</div>
+<div class="mb-8">
     <h2 class="text-2xl font-semibold mb-4 text-gray-700">Your Tasks</h2>
-    {% if tasks %}
+    {% if tasks %} <div class="bg-white shadow overflow-hidden sm:rounded-lg"> <ul class="divide-y divide-gray-200"> {% for task in tasks %} {% set bg_color = 'bg-white' %}; {% if task.status == 'complete' %}{% set bg_color = 'bg-green-50' %}{% elif task.status == 'failed' %}{% set bg_color = 'bg-red-50' %}{% elif task.status == 'incomplete' %}{% set bg_color = 'bg-yellow-50' %}{% endif %} <li class="px-4 py-4 sm:px-6 {{ bg_color }}"> <div class="flex items-center justify-between flex-wrap"> <div class="truncate flex-grow mr-4 mb-2 sm:mb-0"> <div class="flex text-sm"> <p class="text-gray-900 font-medium">Task from {{ task.parent_username }}</p> </div> <div class="mt-1 flex items-center text-sm text-gray-700"> <p class="truncate">{{ task.description }}</p> </div> <div class="mt-1 text-xs text-gray-500"> Potential Reward: {{ task.monetary_value | currencyformat }} {% if task.status == 'incomplete' %} | Deadline: {{ task.deadline_datetime | datetimeformat('%Y-%m-%d %H:%M') }} {% endif %} </div> </div> <div class="ml-0 sm:ml-4 flex-shrink-0 text-right"> {% if task.status == 'incomplete' %} <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800"> Pending </span> <p class="text-xs text-gray-500 mt-1">Complete by deadline!</p> {% elif task.status == 'complete' %} <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800"> Complete ({{ task.completion_level }}%) </span> <p class="text-xs text-gray-600 mt-1">You Earned: <span class="font-medium text-green-700">{{ task.calculated_payment | currencyformat }}</span></p> <p class="text-xs text-gray-500 mt-1">Completed: {{ task.completion_datetime | datetimeformat('%Y-%m-%d') }}</p> {% elif task.status == 'failed' %} <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800"> Failed </span> {% if task.has_punishment and task.punishment_value %} <p class="text-xs text-red-600 mt-1">Penalty Applied</p> {% else %} <p class="text-xs text-gray-500 mt-1">No penalty applied</p> {% endif %} <p class="text-xs text-gray-500 mt-1">Marked: {{ task.completion_datetime | datetimeformat('%Y-%m-%d') }}</p> {% endif %} </div> </div> </li> {% endfor %} </ul> </div> {% else %} <p class="text-gray-600 bg-white p-4 rounded-lg shadow">You don't have any tasks assigned yet.</p> {% endif %}
+</div>
+
+<div class="mb-8">
+    <h2 class="text-2xl font-semibold mb-4 text-gray-700">Your Spending Requests</h2>
+    {% if spending_requests %}
     <div class="bg-white shadow overflow-hidden sm:rounded-lg">
         <ul class="divide-y divide-gray-200">
-            {% for task in tasks %}
-             {# Determine background color based on status #}
-            {% set bg_color = 'bg-white' %}
-            {% if task.status == 'complete' %}
-                {% set bg_color = 'bg-green-50' %}
-            {% elif task.status == 'failed' %}
-                {% set bg_color = 'bg-red-50' %}
-            {% elif task.status == 'incomplete' %}
-                {% set bg_color = 'bg-yellow-50' %}
-            {% endif %}
-
-             <li class="px-4 py-4 sm:px-6 {{ bg_color }}">
+            {% for req in spending_requests %}
+             {% set status_color = 'bg-gray-100 text-gray-800' %} {# Default/Denied #}
+             {% if req.status == 'pending' %} {% set status_color = 'bg-yellow-100 text-yellow-800' %}
+             {% elif req.status == 'approved' %} {% set status_color = 'bg-green-100 text-green-800' %}
+             {% elif req.status == 'denied' %} {% set status_color = 'bg-red-100 text-red-800' %}
+             {% endif %}
+            <li class="px-4 py-3 sm:px-6">
                 <div class="flex items-center justify-between flex-wrap">
-                    <div class="truncate flex-grow mr-4 mb-2 sm:mb-0">
-                        <div class="flex text-sm">
-                             <p class="text-gray-900 font-medium">Task from {{ task.parent_username }}</p>
-                        </div>
-                        <div class="mt-1 flex items-center text-sm text-gray-700">
-                            <p class="truncate">{{ task.description }}</p>
-                        </div>
-                         <div class="mt-1 text-xs text-gray-500">
-                            Potential Reward: {{ task.monetary_value | currencyformat }}
-                            {% if task.status == 'incomplete' %}
-                                | Deadline: {{ task.deadline_datetime | datetimeformat('%Y-%m-%d %H:%M') }}
-                            {% endif %}
-                         </div>
+                    <div class="truncate flex-grow mr-4 mb-1 sm:mb-0">
+                        <p class="text-sm font-medium text-gray-900">Amount: {{ req.amount | currencyformat }}</p>
+                        <p class="text-sm text-gray-600 truncate" title="{{ req.reason | default('No reason given', true) }}">Reason: {{ req.reason | default('N/A', true) }}</p>
+                        <p class="text-xs text-gray-500">Requested: {{ req.request_datetime | datetimeformat('%Y-%m-%d') }}</p>
                     </div>
-                    <div class="ml-0 sm:ml-4 flex-shrink-0 text-right">
-                        {# --- INCOMPLETE Tasks --- #}
-                        {% if task.status == 'incomplete' %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                Pending
-                            </span>
-                            <p class="text-xs text-gray-500 mt-1">Complete by deadline!</p>
-                        {# --- COMPLETE Tasks --- #}
-                        {% elif task.status == 'complete' %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                Complete ({{ task.completion_level }}%)
-                            </span>
-                             <p class="text-xs text-gray-600 mt-1">You Earned: <span class="font-medium text-green-700">{{ task.calculated_payment | currencyformat }}</span></p>
-                             <p class="text-xs text-gray-500 mt-1">Completed: {{ task.completion_datetime | datetimeformat('%Y-%m-%d') }}</p>
-                        {# --- FAILED Tasks --- #}
-                        {% elif task.status == 'failed' %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                Failed
-                            </span>
-                            {% if task.has_punishment and task.punishment_value %}
-                                <p class="text-xs text-red-600 mt-1">Penalty Applied</p>
-                            {% else %}
-                                 <p class="text-xs text-gray-500 mt-1">No penalty applied</p>
-                            {% endif %}
-                             <p class="text-xs text-gray-500 mt-1">Marked: {{ task.completion_datetime | datetimeformat('%Y-%m-%d') }}</p> {# Using completion_datetime for failure time #}
-                        {% endif %}
+                    <div class="ml-0 sm:ml-4 flex-shrink-0">
+                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ status_color }}">
+                            {{ req.status | capitalize }}
+                         </span>
+                         {% if req.decision_datetime %}
+                         <p class="text-xs text-gray-500 mt-1">Decided: {{ req.decision_datetime | datetimeformat('%Y-%m-%d') }}</p>
+                         {% endif %}
                     </div>
                 </div>
             </li>
@@ -97,8 +93,44 @@
         </ul>
     </div>
     {% else %}
-    <p class="text-gray-600 bg-white p-4 rounded-lg shadow">You don't have any tasks assigned yet.</p>
+    <p class="text-gray-600 bg-white p-4 rounded-lg shadow">You haven't made any spending requests.</p>
     {% endif %}
 </div>
+<div>
+    <h2 class="text-2xl font-semibold mb-4 text-gray-700">Your Savings Goals</h2>
+    {% if savings_goals %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% set current_balance = summaries.get('balance', 0) %}
+        {% for goal in savings_goals %}
+            {% set target = goal.target_amount | float %} {# Convert target string to float for calculation #}
+            {% set progress = 0 %}
+            {% if target > 0 %}
+                {% set progress = ( (current_balance / target) * 100 ) | round | int %}
+                {% if progress > 100 %}{% set progress = 100 %}{% endif %} {# Cap at 100% #}
+                {% if progress < 0 %}{% set progress = 0 %}{% endif %} {# Floor at 0% #}
+            {% endif %}
 
+            <div class="bg-white p-4 rounded-lg shadow border border-gray-200 relative">
+                 {# Delete Button #}
+                 <form action="{{ url_for('delete_goal', goal_id=goal._id) }}" method="POST" class="absolute top-2 right-2" onsubmit="return confirm('Delete this savings goal?');">
+                    <button type="submit" class="text-gray-400 hover:text-red-500" title="Delete Goal">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                 </form>
+
+                <h3 class="text-lg font-semibold text-teal-700 mb-2 pr-6">{{ goal.goal_name }}</h3>
+                <p class="text-sm text-gray-700 mb-1">Target: <span class="font-medium">{{ goal.target_amount | currencyformat }}</span></p>
+                <p class="text-sm text-gray-700 mb-2">Current Balance: <span class="font-medium">{{ current_balance | currencyformat }}</span></p>
+                {# Progress Bar #}
+                <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                    <div class="bg-teal-500 h-2.5 rounded-full" style="width: {{ progress }}%"></div>
+                </div>
+                 <p class="text-xs text-center text-gray-500 mt-1">{{ progress }}% Reached</p>
+            </div>
+        {% endfor %}
+    </div>
+    {% else %}
+     <p class="text-gray-600 bg-white p-4 rounded-lg shadow">You haven't set any savings goals yet.</p>
+    {% endif %}
+</div>
 {% endblock %}

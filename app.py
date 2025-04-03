@@ -27,12 +27,21 @@ try:
     users_collection = db.users
     tasks_collection = db.tasks
     deductions_collection = db.deductions
+    # NEW Collections
+    spending_requests_collection = db.spending_requests
+    savings_goals_collection = db.savings_goals
+
     # Indexes (ensure they exist)
     users_collection.create_index("username", unique=True)
     users_collection.create_index("email", unique=True, partialFilterExpression={"role": "parent"})
     tasks_collection.create_index([("assigned_kid_username", 1), ("status", 1)])
     tasks_collection.create_index([("parent_username", 1), ("entry_datetime", -1)])
     deductions_collection.create_index([("kid_username", 1), ("category", 1)])
+    # NEW Indexes
+    spending_requests_collection.create_index([("kid_username", 1), ("status", 1)])
+    spending_requests_collection.create_index([("parent_username", 1), ("status", 1)])
+    savings_goals_collection.create_index([("kid_username", 1), ("status", 1)])
+
     client.admin.command('ping')
     print("Successfully connected to MongoDB.")
 except Exception as e:
@@ -40,26 +49,17 @@ except Exception as e:
     exit()
 
 # --- Email Configuration (Flask-Mail) ---
-app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.example.com')
-app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
-app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'false').lower() == 'true'
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
+# ... (Email config remains the same as app_v4.py) ...
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.example.com'); app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587)); app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'; app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'false').lower() == 'true'; app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME'); app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD'); app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
 mail = Mail(app)
 
 # --- Helper Functions (Unchanged) ---
-def get_token_serializer():
+def get_token_serializer(): # ... unchanged ...
     return URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
-
-def send_email(to_email, subject, template):
-    try:
-        msg = Message(subject, recipients=[to_email], html=template, sender=current_app.config['MAIL_DEFAULT_SENDER'])
-        mail.send(msg); print(f"Email sent successfully to {to_email}"); return True
+def send_email(to_email, subject, template): # ... unchanged ...
+    try: msg = Message(subject, recipients=[to_email], html=template, sender=current_app.config['MAIL_DEFAULT_SENDER']); mail.send(msg); print(f"Email sent successfully to {to_email}"); return True
     except Exception as e: print(f"Error sending email to {to_email}: {e}"); return False
-
-def calculate_summaries(kid_username):
+def calculate_summaries(kid_username): # ... unchanged ...
     total_earned=Decimal('0.00'); total_punishment=Decimal('0.00'); total_spent=Decimal('0.00'); total_invested=Decimal('0.00'); two_places=Decimal('0.01')
     try:
         completed_tasks = tasks_collection.find({"assigned_kid_username": kid_username, "status": "complete"})
@@ -83,14 +83,14 @@ def calculate_summaries(kid_username):
 
 # --- Routes ---
 
-# --- Login/Register/Logout/Password Reset Routes (Unchanged) ---
+# --- Login/Register/Logout/Password Reset Routes (Unchanged from v4) ---
+# ... (These routes remain the same as app_v4.py) ...
 @app.route('/')
 def index(): # ... unchanged ...
     if 'username' in session:
         if session.get('role') == 'parent': return redirect(url_for('parent_dashboard'))
         elif session.get('role') == 'kid': return redirect(url_for('kid_dashboard'))
     return redirect(url_for('login'))
-
 @app.route('/login', methods=['GET', 'POST'])
 def login(): # ... unchanged ...
     if request.method == 'POST':
@@ -109,7 +109,6 @@ def login(): # ... unchanged ...
         return redirect(url_for('login'))
     if 'username' in session: return redirect(url_for('index'))
     return render_template('login.html')
-
 @app.route('/register_parent', methods=['POST'])
 def register_parent(): # ... unchanged ...
     username = request.form.get('reg_username'); password = request.form.get('reg_password'); email = request.form.get('reg_email')
@@ -123,11 +122,9 @@ def register_parent(): # ... unchanged ...
         flash('Parent registration successful! Please log in.', 'success')
     except Exception as e: print(f"Parent registration error: {e}"); flash('An error occurred during registration.', 'error')
     return redirect(url_for('login'))
-
 @app.route('/logout')
 def logout(): # ... unchanged ...
     session.clear(); flash('You have been logged out.', 'info'); return redirect(url_for('login'))
-
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password(): # ... unchanged ...
     if request.method == 'POST':
@@ -145,7 +142,6 @@ def forgot_password(): # ... unchanged ...
         except Exception as e: print(f"Forgot password error: {e}"); flash('An error occurred.', 'error')
         return redirect(url_for('login'))
     return render_template('forgot_password.html')
-
 @app.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password_with_token(token): # ... unchanged ...
     s = get_token_serializer()
@@ -166,19 +162,108 @@ def reset_password_with_token(token): # ... unchanged ...
         except Exception as e: print(f"Password reset update error: {e}"); flash('Error resetting password.', 'error'); return render_template('reset_password.html', token=token)
     return render_template('reset_password.html', token=token)
 
+
 # --- Parent Routes ---
 
 @app.route('/parent_dashboard')
-def parent_dashboard(): # ... unchanged ...
-    if 'username' not in session or session.get('role') != 'parent': flash('Please log in as a parent.', 'warning'); return redirect(url_for('login'))
+def parent_dashboard():
+    """Displays parent dashboard, including pending spending requests."""
+    if 'username' not in session or session.get('role') != 'parent':
+        flash('Please log in as a parent.', 'warning'); return redirect(url_for('login'))
     parent_username = session['username']
     try:
         kids = list(users_collection.find({"role": "kid", "associated_parent_username": parent_username}))
         tasks = list(tasks_collection.find({"parent_username": parent_username}).sort("entry_datetime", -1))
         kids_summaries = {kid['username']: calculate_summaries(kid['username']) for kid in kids}
-        return render_template('parent_dashboard.html', parent_username=parent_username, tasks=tasks, kids=kids, kids_summaries=kids_summaries)
-    except Exception as e: print(f"Error loading parent dashboard: {e}"); flash('Could not load dashboard data.', 'error'); return render_template('parent_dashboard.html', parent_username=parent_username, tasks=[], kids=[], kids_summaries={})
 
+        # NEW: Fetch pending spending requests for this parent's kids
+        kid_usernames = [k['username'] for k in kids]
+        pending_requests = []
+        if kid_usernames: # Only query if parent has kids
+            pending_requests = list(spending_requests_collection.find({
+                "kid_username": {"$in": kid_usernames},
+                "status": "pending"
+            }).sort("request_datetime", 1)) # Sort oldest first
+
+        return render_template('parent_dashboard.html',
+                               parent_username=parent_username,
+                               tasks=tasks,
+                               kids=kids,
+                               kids_summaries=kids_summaries,
+                               pending_requests=pending_requests) # Pass requests to template
+    except Exception as e:
+        print(f"Error loading parent dashboard: {e}"); flash('Could not load dashboard data.', 'error')
+        return render_template('parent_dashboard.html', parent_username=parent_username, tasks=[], kids=[], kids_summaries={}, pending_requests=[])
+
+# --- NEW: Parent Decide Spending Request Route ---
+@app.route('/parent/decide_request/<request_id>', methods=['POST'])
+def decide_request(request_id):
+    """Handles parent approval/denial of a spending request."""
+    if 'username' not in session or session.get('role') != 'parent':
+        flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
+
+    parent_username = session['username']
+    decision = request.form.get('decision') # 'approve' or 'deny'
+
+    if decision not in ['approve', 'deny']:
+        flash('Invalid decision.', 'error'); return redirect(url_for('parent_dashboard'))
+
+    try:
+        # Find the request
+        spending_request = spending_requests_collection.find_one({"_id": ObjectId(request_id)})
+
+        if not spending_request:
+            flash('Spending request not found.', 'error'); return redirect(url_for('parent_dashboard'))
+
+        # Verify request is pending and belongs to one of this parent's kids
+        kid_username = spending_request.get('kid_username')
+        kid_user = users_collection.find_one({"username": kid_username, "associated_parent_username": parent_username})
+
+        if not kid_user or spending_request.get('status') != 'pending':
+            flash('Cannot process this request (not pending or invalid kid).', 'error'); return redirect(url_for('parent_dashboard'))
+
+        # Process decision
+        new_status = 'approved' if decision == 'approve' else 'denied'
+        update_data = {
+            "status": new_status,
+            "decision_datetime": datetime.now(timezone.utc)
+        }
+
+        if decision == 'approve':
+            # Check balance BEFORE approving
+            summaries = calculate_summaries(kid_username)
+            request_amount = Decimal(spending_request['amount'])
+
+            if summaries['balance'] < request_amount:
+                flash(f'Insufficient balance ({summaries["balance"] | currencyformat}) to approve request for {request_amount | currencyformat}. Request denied.', 'error')
+                update_data['status'] = 'denied' # Override status to denied
+                spending_requests_collection.update_one({"_id": ObjectId(request_id)}, {"$set": update_data})
+            else:
+                # Sufficient balance: Update request status and create deduction
+                spending_requests_collection.update_one({"_id": ObjectId(request_id)}, {"$set": update_data})
+                # Create deduction record
+                new_deduction = {
+                    "parent_username": parent_username, # Parent approving
+                    "kid_username": kid_username,
+                    "amount": spending_request['amount'], # Use amount from request
+                    "category": "spending",
+                    "deduction_datetime": datetime.now(timezone.utc),
+                    "description": f"Approved spending request: {spending_request.get('reason', 'No reason given')[:50]}"
+                }
+                deductions_collection.insert_one(new_deduction)
+                flash(f'Spending request for {kid_username} approved!', 'success')
+        else: # Deny
+            spending_requests_collection.update_one({"_id": ObjectId(request_id)}, {"$set": update_data})
+            flash(f'Spending request for {kid_username} denied.', 'info')
+
+    except Exception as e:
+        print(f"Error deciding request {request_id}: {e}"); flash('An error occurred processing the request.', 'error')
+
+    return redirect(url_for('parent_dashboard'))
+# --- END NEW ROUTE ---
+
+
+# --- Other Parent Routes (Unchanged from v4) ---
 @app.route('/add_kid', methods=['POST'])
 def add_kid(): # ... unchanged ...
     if 'username' not in session or session.get('role') != 'parent': flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
@@ -192,57 +277,24 @@ def add_kid(): # ... unchanged ...
         flash(f'Kid account "{kid_username}" created!', 'success')
     except Exception as e: print(f"Error adding kid: {e}"); flash('Error adding kid account.', 'error')
     return redirect(url_for('parent_dashboard'))
-
-# --- NEW: Parent Reset Kid Password Route ---
 @app.route('/parent/reset_kid_password/<kid_username>', methods=['POST'])
-def reset_kid_password(kid_username):
-    """Allows a logged-in parent to reset the password for their associated kid."""
-    if 'username' not in session or session.get('role') != 'parent':
-        flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
-
-    parent_username = session['username']
-    new_password = request.form.get(f'new_password_{kid_username}')
-    confirm_password = request.form.get(f'confirm_password_{kid_username}')
-
-    # Basic Validation
-    if not new_password or not confirm_password:
-        flash('Both new password fields are required.', 'error'); return redirect(url_for('parent_dashboard'))
-    if new_password != confirm_password:
-        flash('Passwords do not match.', 'error'); return redirect(url_for('parent_dashboard'))
-    if len(new_password) < 4: # Kid password minimum length
-        flash('Kid password must be at least 4 characters long.', 'error'); return redirect(url_for('parent_dashboard'))
-
+def reset_kid_password(kid_username): # ... unchanged ...
+    if 'username' not in session or session.get('role') != 'parent': flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
+    parent_username = session['username']; new_password = request.form.get(f'new_password_{kid_username}'); confirm_password = request.form.get(f'confirm_password_{kid_username}')
+    if not new_password or not confirm_password: flash('Both new password fields are required.', 'error'); return redirect(url_for('parent_dashboard'))
+    if new_password != confirm_password: flash('Passwords do not match.', 'error'); return redirect(url_for('parent_dashboard'))
+    if len(new_password) < 4: flash('Kid password must be at least 4 characters long.', 'error'); return redirect(url_for('parent_dashboard'))
     try:
-        # Verify the kid belongs to this parent
-        kid_user = users_collection.find_one({
-            "username": kid_username,
-            "role": "kid",
-            "associated_parent_username": parent_username
-        })
-
-        if not kid_user:
-            flash('Kid user not found or not associated with your account.', 'error'); return redirect(url_for('parent_dashboard'))
-
-        # Hash the new password and update the kid's user document
+        kid_user = users_collection.find_one({"username": kid_username, "role": "kid", "associated_parent_username": parent_username})
+        if not kid_user: flash('Kid user not found or not associated.', 'error'); return redirect(url_for('parent_dashboard'))
         hashed_password = generate_password_hash(new_password)
-        result = users_collection.update_one(
-            {"_id": kid_user['_id']},
-            {"$set": {"password_hash": hashed_password}}
-        )
-
-        if result.modified_count == 1:
-            flash(f'Password for {kid_username} has been reset successfully.', 'success')
-        else:
-            flash(f'Failed to reset password for {kid_username}. Please try again.', 'error')
-
-    except Exception as e:
-        print(f"Error resetting kid password for {kid_username}: {e}"); flash('An error occurred while resetting the password.', 'error')
-
+        result = users_collection.update_one({"_id": kid_user['_id']}, {"$set": {"password_hash": hashed_password}})
+        if result.modified_count == 1: flash(f'Password for {kid_username} has been reset.', 'success')
+        else: flash(f'Failed to reset password for {kid_username}.', 'error')
+    except Exception as e: print(f"Error resetting kid password for {kid_username}: {e}"); flash('An error occurred.', 'error')
     return redirect(url_for('parent_dashboard'))
-# --- END NEW ROUTE ---
-
 @app.route('/add_task', methods=['POST'])
-def add_task(): # ... unchanged (already includes penalty logic) ...
+def add_task(): # ... unchanged ...
     if 'username' not in session or session.get('role') != 'parent': flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
     parent_username = session['username']; assigned_kid_username = request.form.get('assigned_kid_username'); description = request.form.get('description'); monetary_value_str = request.form.get('monetary_value'); deadline_str = request.form.get('deadline'); has_punishment = request.form.get('has_punishment') == 'true'; punishment_value_str = request.form.get('punishment_value')
     if not all([assigned_kid_username, description, monetary_value_str, deadline_str]): flash('Kid, description, reward value, and deadline required.', 'error'); return redirect(url_for('parent_dashboard'))
@@ -263,90 +315,36 @@ def add_task(): # ... unchanged (already includes penalty logic) ...
         tasks_collection.insert_one(new_task); flash(f'Task added for {assigned_kid_username}!', 'success')
     except Exception as e: print(f"Error adding task: {e}"); flash('Error adding task.', 'error')
     return redirect(url_for('parent_dashboard'))
-
-# --- NEW: Task Editing Routes ---
 @app.route('/edit_task/<task_id>', methods=['GET', 'POST'])
-def edit_task(task_id):
-    """Handles editing of an incomplete task."""
-    if 'username' not in session or session.get('role') != 'parent':
-        flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
-
+def edit_task(task_id): # ... unchanged ...
+    if 'username' not in session or session.get('role') != 'parent': flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
     parent_username = session['username']
-
-    try:
-        task = tasks_collection.find_one({"_id": ObjectId(task_id), "parent_username": parent_username})
-    except Exception as e: # Handle invalid ObjectId format
-         print(f"Error finding task {task_id} for edit: {e}")
-         task = None
-
-    if not task:
-        flash('Task not found or permission denied.', 'error'); return redirect(url_for('parent_dashboard'))
-
-    # Only allow editing if task is incomplete
-    if task['status'] != 'incomplete':
-        flash(f'Cannot edit a task that is already {task["status"]}.', 'error'); return redirect(url_for('parent_dashboard'))
-
+    try: task = tasks_collection.find_one({"_id": ObjectId(task_id), "parent_username": parent_username})
+    except: task = None
+    if not task: flash('Task not found or permission denied.', 'error'); return redirect(url_for('parent_dashboard'))
+    if task['status'] != 'incomplete': flash(f'Cannot edit a task that is already {task["status"]}.', 'error'); return redirect(url_for('parent_dashboard'))
     if request.method == 'POST':
-        # --- Process form submission ---
-        description = request.form.get('description')
-        monetary_value_str = request.form.get('monetary_value')
-        deadline_str = request.form.get('deadline')
-        has_punishment = request.form.get('has_punishment') == 'true'
-        punishment_value_str = request.form.get('punishment_value')
-
-        # --- Validation (similar to add_task) ---
-        if not all([description, monetary_value_str, deadline_str]):
-            flash('Description, reward value, and deadline required.', 'error')
-            # Re-render edit form with errors if needed (pass task back)
-            return render_template('edit_task.html', task=task)
-
+        description = request.form.get('description'); monetary_value_str = request.form.get('monetary_value'); deadline_str = request.form.get('deadline'); has_punishment = request.form.get('has_punishment') == 'true'; punishment_value_str = request.form.get('punishment_value')
+        if not all([description, monetary_value_str, deadline_str]): flash('Description, reward value, and deadline required.', 'error'); return render_template('edit_task.html', task=task)
         if len(description) > 1000: flash('Description too long.', 'error'); return render_template('edit_task.html', task=task)
-
         try: monetary_value = Decimal(monetary_value_str); assert monetary_value >= Decimal('0.00')
         except: flash('Invalid reward value.', 'error'); return render_template('edit_task.html', task=task)
-
         try: deadline_dt = datetime.strptime(deadline_str, '%Y-%m-%dT%H:%M').replace(tzinfo=timezone.utc)
         except ValueError: flash('Invalid deadline format.', 'error'); return render_template('edit_task.html', task=task)
-
         punishment_value = None
         if has_punishment:
             if not punishment_value_str: flash('Punishment amount required if penalty checked.', 'error'); return render_template('edit_task.html', task=task)
             try: punishment_value_decimal = Decimal(punishment_value_str); assert punishment_value_decimal >= Decimal('0.00'); punishment_value = str(punishment_value_decimal.quantize(Decimal('0.01')))
             except: flash('Invalid punishment value.', 'error'); return render_template('edit_task.html', task=task)
-        # --- End Validation ---
-
         try:
-            # Update the task document in MongoDB
-            update_data = {
-                "description": description,
-                "monetary_value": str(monetary_value.quantize(Decimal('0.01'))),
-                "deadline_datetime": deadline_dt,
-                "has_punishment": has_punishment,
-                "punishment_value": punishment_value
-            }
-            tasks_collection.update_one({"_id": ObjectId(task_id)}, {"$set": update_data})
-            flash('Task updated successfully!', 'success')
-            return redirect(url_for('parent_dashboard'))
-        except Exception as e:
-            print(f"Error updating task {task_id}: {e}")
-            flash('An error occurred while updating the task.', 'error')
-            # Re-render edit form if update fails
-            return render_template('edit_task.html', task=task)
-
-    # --- GET request: Show the edit form ---
-    # Convert deadline back to format expected by datetime-local input
+            update_data = {"description": description, "monetary_value": str(monetary_value.quantize(Decimal('0.01'))), "deadline_datetime": deadline_dt, "has_punishment": has_punishment, "punishment_value": punishment_value}
+            tasks_collection.update_one({"_id": ObjectId(task_id)}, {"$set": update_data}); flash('Task updated successfully!', 'success'); return redirect(url_for('parent_dashboard'))
+        except Exception as e: print(f"Error updating task {task_id}: {e}"); flash('An error occurred while updating the task.', 'error'); return render_template('edit_task.html', task=task)
     if task.get('deadline_datetime'):
-        # Ensure it's timezone-aware (assume UTC if naive) then format
         deadline_dt = task['deadline_datetime']
-        if deadline_dt.tzinfo is None:
-            deadline_dt = deadline_dt.replace(tzinfo=timezone.utc)
-        # Format to YYYY-MM-DDTHH:MM (datetime-local input format)
-        # Note: This formats based on UTC. Displaying in local time might require JS or server-side timezone conversion.
+        if deadline_dt.tzinfo is None: deadline_dt = deadline_dt.replace(tzinfo=timezone.utc)
         task['deadline_formatted'] = deadline_dt.strftime('%Y-%m-%dT%H:%M')
-
     return render_template('edit_task.html', task=task)
-# --- END NEW ROUTES ---
-
 @app.route('/mark_complete/<task_id>', methods=['POST'])
 def mark_complete(task_id): # ... unchanged ...
     if 'username' not in session or session.get('role') != 'parent': return redirect(url_for('login'))
@@ -360,7 +358,6 @@ def mark_complete(task_id): # ... unchanged ...
         flash('Task marked as complete!', 'success')
     except Exception as e: print(f"Error marking complete: {e}"); flash('Error marking task complete.', 'error')
     return redirect(url_for('parent_dashboard'))
-
 @app.route('/mark_failed/<task_id>', methods=['POST'])
 def mark_failed(task_id): # ... unchanged ...
     if 'username' not in session or session.get('role') != 'parent': flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
@@ -381,7 +378,6 @@ def mark_failed(task_id): # ... unchanged ...
         else: flash('Task marked as failed.', 'info')
     except Exception as e: print(f"Error marking task failed: {e}"); flash('Error marking task failed.', 'error')
     return redirect(url_for('parent_dashboard'))
-
 @app.route('/delete_task/<task_id>', methods=['POST'])
 def delete_task(task_id): # ... unchanged ...
     if 'username' not in session or session.get('role') != 'parent': return redirect(url_for('login'))
@@ -391,7 +387,6 @@ def delete_task(task_id): # ... unchanged ...
     try: tasks_collection.delete_one({"_id": ObjectId(task_id)}); flash('Task deleted.', 'success')
     except Exception as e: print(f"Error deleting task: {e}"); flash('Error deleting task.', 'error')
     return redirect(url_for('parent_dashboard'))
-
 @app.route('/deduct_money', methods=['POST'])
 def deduct_money(): # ... unchanged ...
     if 'username' not in session or session.get('role') != 'parent': return redirect(url_for('login'))
@@ -408,17 +403,138 @@ def deduct_money(): # ... unchanged ...
     except Exception as e: print(f"Error deducting money: {e}"); flash('Error recording deduction.', 'error')
     return redirect(url_for('parent_dashboard'))
 
-# --- Kid Routes ---
+# --- Kid Routes (MODIFIED) ---
+
 @app.route('/kid_dashboard')
-def kid_dashboard(): # ... unchanged ...
-    if 'username' not in session or session.get('role') != 'kid': flash('Please log in as a kid.', 'warning'); return redirect(url_for('login'))
-    kid_username = session['username']; kid_user = users_collection.find_one({"username": kid_username, "role": "kid"})
-    if not kid_user or not kid_user.get('associated_parent_username'): flash('Account not configured.', 'error'); session.clear(); return redirect(url_for('login'))
+def kid_dashboard():
+    """Displays the kid dashboard with tasks, requests, and goals."""
+    if 'username' not in session or session.get('role') != 'kid':
+        flash('Please log in as a kid.', 'warning'); return redirect(url_for('login'))
+    kid_username = session['username']
+    kid_user = users_collection.find_one({"username": kid_username, "role": "kid"})
+    if not kid_user or not kid_user.get('associated_parent_username'):
+         flash('Account not configured.', 'error'); session.clear(); return redirect(url_for('login'))
     try:
         summaries = calculate_summaries(kid_username)
         tasks = list(tasks_collection.find({"assigned_kid_username": kid_username}).sort("entry_datetime", -1))
-        return render_template('kid_dashboard.html', kid_username=kid_username, summaries=summaries, tasks=tasks)
-    except Exception as e: print(f"Error loading kid dashboard: {e}"); flash('Could not load dashboard data.', 'error'); return render_template('kid_dashboard.html', kid_username=kid_username, summaries=calculate_summaries(kid_username), tasks=[])
+        # NEW: Fetch spending requests and savings goals
+        spending_requests = list(spending_requests_collection.find({"kid_username": kid_username}).sort("request_datetime", -1))
+        savings_goals = list(savings_goals_collection.find({"kid_username": kid_username, "status": "active"}).sort("creation_datetime", 1))
+
+        return render_template('kid_dashboard.html',
+                               kid_username=kid_username,
+                               summaries=summaries,
+                               tasks=tasks,
+                               spending_requests=spending_requests, # Pass requests
+                               savings_goals=savings_goals) # Pass goals
+    except Exception as e:
+        print(f"Error loading kid dashboard: {e}"); flash('Could not load dashboard data.', 'error')
+        return render_template('kid_dashboard.html', kid_username=kid_username, summaries=calculate_summaries(kid_username), tasks=[], spending_requests=[], savings_goals=[])
+
+# --- NEW: Kid Spending Request Route ---
+@app.route('/kid/request_spending', methods=['POST'])
+def request_spending():
+    """Handles kid's request to spend money."""
+    if 'username' not in session or session.get('role') != 'kid':
+        flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
+
+    kid_username = session['username']
+    amount_str = request.form.get('request_amount')
+    reason = request.form.get('request_reason', '') # Optional reason
+
+    # Validation
+    if not amount_str:
+        flash('Amount is required for spending request.', 'error'); return redirect(url_for('kid_dashboard'))
+    try:
+        amount = Decimal(amount_str)
+        if amount <= Decimal('0.00'): raise ValueError("Amount must be positive")
+    except Exception:
+        flash('Invalid amount entered.', 'error'); return redirect(url_for('kid_dashboard'))
+
+    try:
+        # Find associated parent
+        kid_user = users_collection.find_one({"username": kid_username})
+        parent_username = kid_user.get('associated_parent_username')
+        if not parent_username:
+             flash('Cannot submit request: Parent account not linked.', 'error'); return redirect(url_for('kid_dashboard'))
+
+        # Create request document
+        new_request = {
+            "kid_username": kid_username,
+            "parent_username": parent_username,
+            "amount": str(amount.quantize(Decimal('0.01'))), # Store as string
+            "reason": reason,
+            "status": "pending", # Initial status
+            "request_datetime": datetime.now(timezone.utc),
+            "decision_datetime": None
+        }
+        spending_requests_collection.insert_one(new_request)
+        flash('Spending request submitted to parent for approval!', 'success')
+
+    except Exception as e:
+        print(f"Error submitting spending request for {kid_username}: {e}"); flash('Error submitting request.', 'error')
+
+    return redirect(url_for('kid_dashboard'))
+# --- END NEW ROUTE ---
+
+# --- NEW: Kid Savings Goal Routes ---
+@app.route('/kid/add_goal', methods=['POST'])
+def add_goal():
+    """Handles kid adding a new savings goal."""
+    if 'username' not in session or session.get('role') != 'kid':
+        flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
+
+    kid_username = session['username']
+    goal_name = request.form.get('goal_name')
+    target_amount_str = request.form.get('target_amount')
+
+    # Validation
+    if not goal_name or not target_amount_str:
+        flash('Goal name and target amount are required.', 'error'); return redirect(url_for('kid_dashboard'))
+    try:
+        target_amount = Decimal(target_amount_str)
+        if target_amount <= Decimal('0.00'): raise ValueError("Target must be positive")
+    except Exception:
+        flash('Invalid target amount.', 'error'); return redirect(url_for('kid_dashboard'))
+
+    try:
+        new_goal = {
+            "kid_username": kid_username,
+            "goal_name": goal_name,
+            "target_amount": str(target_amount.quantize(Decimal('0.01'))), # Store as string
+            "creation_datetime": datetime.now(timezone.utc),
+            "status": "active" # Initial status
+        }
+        savings_goals_collection.insert_one(new_goal)
+        flash('New savings goal added!', 'success')
+    except Exception as e:
+        print(f"Error adding savings goal for {kid_username}: {e}"); flash('Error adding goal.', 'error')
+
+    return redirect(url_for('kid_dashboard'))
+
+@app.route('/kid/delete_goal/<goal_id>', methods=['POST'])
+def delete_goal(goal_id):
+    """Handles kid deleting their savings goal."""
+    if 'username' not in session or session.get('role') != 'kid':
+        flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
+
+    kid_username = session['username']
+    try:
+        # Verify goal exists and belongs to the kid before deleting
+        result = savings_goals_collection.delete_one({
+            "_id": ObjectId(goal_id),
+            "kid_username": kid_username
+        })
+        if result.deleted_count == 1:
+            flash('Savings goal deleted.', 'success')
+        else:
+            flash('Could not find or delete savings goal.', 'error')
+    except Exception as e:
+         print(f"Error deleting goal {goal_id} for {kid_username}: {e}"); flash('Error deleting goal.', 'error')
+
+    return redirect(url_for('kid_dashboard'))
+# --- END NEW ROUTES ---
+
 
 # --- Utility Filters (Unchanged) ---
 @app.template_filter('datetimeformat')
@@ -428,7 +544,6 @@ def datetimeformat(value, format='%Y-%m-%d %H:%M %Z'): # ... unchanged ...
         if value.tzinfo is None: value = value.replace(tzinfo=timezone.utc)
         return value.strftime(format)
     return value
-
 @app.template_filter('currencyformat')
 def currencyformat(value): # ... unchanged ...
     try: dec_value = Decimal(str(value)) if not isinstance(value, Decimal) else value; return "${:,.2f}".format(dec_value)
