@@ -83,7 +83,7 @@
         <ul class="divide-y divide-gray-200">
             {% for task in tasks %}
             {# Determine background color based on status #}
-            {% set bg_color = 'bg-white' %}; {% if task.status == 'complete' %}{% set bg_color = 'bg-green-50' %}{% elif task.status == 'failed' %}{% set bg_color = 'bg-red-50' %}{% elif task.status == 'incomplete' %}{% set bg_color = 'bg-yellow-50' %}{% endif %}
+            {% set bg_color = 'bg-white' %} {% if task.status == 'complete' %}{% set bg_color = 'bg-green-50' %}{% elif task.status == 'failed' %}{% set bg_color = 'bg-red-50' %}{% elif task.status == 'incomplete' %}{% set bg_color = 'bg-yellow-50' %}{% endif %}
             <li class="px-4 py-4 sm:px-6 {{ bg_color }}">
                 <div class="flex items-center justify-between flex-wrap">
                     <div class="truncate flex-grow mr-4 mb-2 sm:mb-0">
