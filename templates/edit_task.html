@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Task{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-6 text-gray-800">Edit Task</h1>
+
+{# Check if task data exists #}
+{% if task %}
+<div class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow-md">
+    {# Form posts back to the same URL which handles both GET and POST #}
+    <form method="POST" action="{{ url_for('edit_task', task_id=task._id) }}" id="edit-task-form">
+        {# Display Kid Name (Read-only) #}
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700">Task For</label>
+            <p class="mt-1 text-base text-gray-900 font-medium">{{ task.assigned_kid_username }}</p>
+        </div>
+
+        {# Description #}
+        <div class="mb-4">
+            <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
+            <textarea id="description" name="description" rows="3" required maxlength="1000"
+                      class="mt-1 shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-2"
+                      >{{ task.description | default('', true) }}</textarea> {# Pre-fill description #}
+        </div>
+
+        {# Reward Value #}
+        <div class="mb-4">
+            <label for="monetary_value" class="block text-sm font-medium text-gray-700">Reward Value ($)</label>
+            <input type="number" id="monetary_value" name="monetary_value" required step="0.01" min="0"
+                   class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2"
+                   value="{{ task.monetary_value | default('', true) }}" {# Pre-fill reward #}
+                   placeholder="e.g., 5.00">
+        </div>
+
+        {# Deadline #}
+        <div class="mb-4">
+            <label for="deadline" class="block text-sm font-medium text-gray-700">Deadline</label>
+            <input type="datetime-local" id="deadline" name="deadline" required
+                   class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2"
+                   value="{{ task.deadline_formatted | default('', true) }}"> {# Pre-fill formatted deadline #}
+        </div>
+
+        {# Penalty Options #}
+        <div class="mb-4 border-t pt-4 mt-4">
+             <label class="flex items-center">
+                <input type="checkbox" id="has_punishment" name="has_punishment" value="true"
+                       class="form-checkbox h-5 w-5 text-orange-600 rounded"
+                       {% if task.has_punishment %}checked{% endif %}> {# Check based on task data #}
+                <span class="ml-2 text-sm font-medium text-gray-700">Apply penalty if not completed satisfactorily?</span>
+            </label>
+        </div>
+         <div class="mb-6" id="punishment-value-group" style="display: {% if task.has_punishment %}block{% else %}none{% endif %};"> {# Show/hide based on task data #}
+            <label for="punishment_value" class="block text-sm font-medium text-gray-700">Penalty Amount ($) <span class="text-xs text-gray-500">(Defaults to 50% of Reward)</span></label>
+            <input type="number" id="punishment_value" name="punishment_value" step="0.01" min="0"
+                   class="mt-1 focus:ring-orange-500 focus:border-orange-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 bg-gray-50"
+                   value="{{ task.punishment_value | default('', true) }}" {# Pre-fill penalty #}
+                   placeholder="e.g., 2.50">
+        </div>
+        {# End Penalty Options #}
+
+        {# Action Buttons #}
+        <div class="flex items-center justify-end space-x-3">
+             <a href="{{ url_for('parent_dashboard') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out">
+                Cancel
+            </a>
+            <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out">
+                Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+
+{# JavaScript for Penalty Default Calculation (Same as parent dashboard, needed here too) #}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const monetaryValueInput = document.getElementById('monetary_value');
+        const hasPunishmentCheckbox = document.getElementById('has_punishment');
+        const punishmentValueGroup = document.getElementById('punishment-value-group');
+        const punishmentValueInput = document.getElementById('punishment_value');
+
+        // Ensure elements exist before adding listeners
+        if (monetaryValueInput && hasPunishmentCheckbox && punishmentValueGroup && punishmentValueInput) {
+            function updatePenaltyDefault() {
+                if (hasPunishmentCheckbox.checked) {
+                    punishmentValueGroup.style.display = 'block';
+                    // Only require if checkbox is checked AND no value is already set
+                    punishmentValueInput.required = punishmentValueInput.value.trim() === '';
+
+                    const rewardValue = parseFloat(monetaryValueInput.value);
+                    if (!isNaN(rewardValue) && rewardValue > 0) {
+                        const defaultPenalty = (rewardValue * 0.50).toFixed(2);
+                        // Set default ONLY if the input is empty or was previously the default
+                        // Use a data attribute to track if the current value is user-set or default
+                        if (punishmentValueInput.value === '' || punishmentValueInput.dataset.isDefault === 'true') {
+                            punishmentValueInput.value = defaultPenalty;
+                            punishmentValueInput.dataset.isDefault = 'true';
+                        } else {
+                            punishmentValueInput.dataset.isDefault = 'false'; // User has set a value
+                        }
+                    } else {
+                         if (punishmentValueInput.value === '' || punishmentValueInput.dataset.isDefault === 'true') {
+                             punishmentValueInput.value = '';
+                             punishmentValueInput.dataset.isDefault = 'true';
+                         }
+                    }
+                } else {
+                    punishmentValueGroup.style.display = 'none';
+                    punishmentValueInput.required = false;
+                    // Don't clear the value if unchecking, parent might want to re-check later
+                    // punishmentValueInput.value = ''; // Optional: clear value when unchecked
+                    punishmentValueInput.dataset.isDefault = 'false';
+                }
+            }
+
+            // Flag that the initial value might be user-set if it's not empty
+            if (punishmentValueInput.value !== '') {
+                punishmentValueInput.dataset.isDefault = 'false';
+            } else {
+                 punishmentValueInput.dataset.isDefault = 'true';
+            }
+
+            punishmentValueInput.addEventListener('input', function() {
+                punishmentValueInput.dataset.isDefault = 'false'; // User is typing
+                punishmentValueInput.required = hasPunishmentCheckbox.checked; // Ensure required if checked
+            });
+
+            hasPunishmentCheckbox.addEventListener('change', updatePenaltyDefault);
+            monetaryValueInput.addEventListener('input', function() {
+                // When reward changes, reset penalty to default only if it was previously default
+                 if(punishmentValueInput.dataset.isDefault === 'true'){
+                     punishmentValueInput.value = ''; // Clear to allow recalculation
+                 }
+                 updatePenaltyDefault();
+            });
+
+            // Initial check when page loads
+            updatePenaltyDefault();
+        }
+    });
+</script>
+
+{% else %}
+    <p class="text-red-500">Error: Task data not found.</p>
+    <a href="{{ url_for('parent_dashboard') }}" class="text-blue-500 hover:text-blue-700">Return to Dashboard</a>
+{% endif %}
+
+{% endblock %}

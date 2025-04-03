@@ -6,18 +6,43 @@
 <h1 class="text-3xl font-bold mb-6 text-gray-800">Parent Dashboard</h1>
 
 <div class="mb-8">
-    <h2 class="text-2xl font-semibold mb-4 text-gray-700">Your Kids' Summaries</h2>
+    <h2 class="text-2xl font-semibold mb-4 text-gray-700">Your Kids' Summaries & Management</h2>
     {% if kids %}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"> {# Increased gap #}
             {% for kid in kids %}
-                {% set summary = kids_summaries.get(kid.username, {}) %}
-                <div class="bg-white p-4 rounded-lg shadow">
+                <div class="bg-white p-4 rounded-lg shadow border border-gray-200"> {# Added border #}
+                    {# Kid Summary Info (Unchanged) #}
                     <h3 class="text-lg font-semibold text-blue-700 mb-2">{{ kid.username }}</h3>
+                    {% set summary = kids_summaries.get(kid.username, {}) %}
                     <p class="text-sm text-gray-600">Balance: <span class="font-medium text-black">{{ summary.get('balance') | currencyformat }}</span></p>
                     <p class="text-sm text-gray-600">Earned: <span class="font-medium text-green-600">{{ summary.get('earned') | currencyformat }}</span></p>
                     <p class="text-sm text-gray-600">Spent: <span class="font-medium text-red-600">{{ summary.get('spent') | currencyformat }}</span></p>
                     <p class="text-sm text-gray-600">Invested: <span class="font-medium text-purple-600">{{ summary.get('invested') | currencyformat }}</span></p>
-                    <p class="text-sm text-gray-600">Total Penalties: <span class="font-medium text-orange-600">{{ summary.get('punishment') | currencyformat }}</span></p>
+                    <p class="text-sm text-gray-600">Penalties: <span class="font-medium text-orange-600">{{ summary.get('punishment') | currencyformat }}</span></p>
+
+                    {# NEW: Kid Password Reset Form #}
+                    <div class="mt-4 pt-4 border-t">
+                        <h4 class="text-sm font-semibold text-gray-600 mb-2">Reset {{ kid.username }}'s Password:</h4>
+                        {# Unique form IDs and input names using kid username #}
+                        <form action="{{ url_for('reset_kid_password', kid_username=kid.username) }}" method="POST" id="reset-form-{{ kid.username }}">
+                            <div class="mb-2">
+                                <label for="new_password_{{ kid.username }}" class="sr-only">New Password</label>
+                                <input type="password" id="new_password_{{ kid.username }}" name="new_password_{{ kid.username }}" required minlength="4"
+                                       class="shadow-sm appearance-none border rounded w-full py-1 px-2 text-sm text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                       placeholder="New Password (min 4)">
+                            </div>
+                            <div class="mb-2">
+                                 <label for="confirm_password_{{ kid.username }}" class="sr-only">Confirm New Password</label>
+                                <input type="password" id="confirm_password_{{ kid.username }}" name="confirm_password_{{ kid.username }}" required minlength="4"
+                                       class="shadow-sm appearance-none border rounded w-full py-1 px-2 text-sm text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                       placeholder="Confirm Password">
+                            </div>
+                            <button type="submit" class="w-full text-sm bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out">
+                                Reset Password
+                            </button>
+                        </form>
+                    </div>
+                    {# END NEW SECTION #}
                 </div>
             {% endfor %}
         </div>
@@ -31,94 +56,21 @@
     <div class="bg-white p-6 rounded-lg shadow-md md:col-span-1">
         <h2 class="text-xl font-semibold mb-4 text-gray-700">Add New Kid</h2>
         <form action="{{ url_for('add_kid') }}" method="POST">
-            <div class="mb-4">
-                <label for="kid_username" class="block text-sm font-medium text-gray-700">Kid's Username</label>
-                <input type="text" id="kid_username" name="kid_username" required minlength="3"
-                       class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="Choose a unique username">
-            </div>
-            <div class="mb-4">
-                <label for="kid_password" class="block text-sm font-medium text-gray-700">Kid's Password</label>
-                <input type="password" id="kid_password" name="kid_password" required minlength="4"
-                       class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="Set initial password (min 4)">
-            </div>
-            <button type="submit" class="w-full bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">
-                Add Kid Account
-            </button>
+             <div class="mb-4"> <label for="kid_username" class="block text-sm font-medium text-gray-700">Kid's Username</label> <input type="text" id="kid_username" name="kid_username" required minlength="3" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="Choose a unique username"> </div> <div class="mb-4"> <label for="kid_password" class="block text-sm font-medium text-gray-700">Kid's Password</label> <input type="password" id="kid_password" name="kid_password" required minlength="4" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="Set initial password (min 4)"> </div> <button type="submit" class="w-full bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out"> Add Kid Account </button>
         </form>
     </div>
 
     <div class="bg-white p-6 rounded-lg shadow-md md:col-span-1">
         <h2 class="text-xl font-semibold mb-4 text-gray-700">Add New Task</h2>
         <form action="{{ url_for('add_task') }}" method="POST" id="add-task-form">
-            <div class="mb-4">
-                <label for="assigned_kid_username" class="block text-sm font-medium text-gray-700">Assign to Kid</label>
-                <select id="assigned_kid_username" name="assigned_kid_username" required
-                        class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
-                    <option value="" disabled selected>Select your kid</option>
-                    {% for kid in kids %}
-                    <option value="{{ kid.username }}">{{ kid.username }}</option>
-                    {% else %}
-                    <option value="" disabled>No kids added yet</option>
-                    {% endfor %}
-                </select>
-            </div>
-             <div class="mb-4">
-                <label for="description" class="block text-sm font-medium text-gray-700">Description</label>
-                <textarea id="description" name="description" rows="2" required maxlength="1000" class="mt-1 shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-2"></textarea>
-            </div>
-            <div class="mb-4">
-                <label for="monetary_value" class="block text-sm font-medium text-gray-700">Reward Value ($)</label>
-                <input type="number" id="monetary_value" name="monetary_value" required step="0.01" min="0" class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="e.g., 5.00">
-            </div>
-            <div class="mb-4">
-                <label for="deadline" class="block text-sm font-medium text-gray-700">Deadline</label>
-                <input type="datetime-local" id="deadline" name="deadline" required class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2">
-            </div>
-            <div class="mb-4 border-t pt-4 mt-4">
-                 <label class="flex items-center">
-                    <input type="checkbox" id="has_punishment" name="has_punishment" value="true" class="form-checkbox h-5 w-5 text-orange-600 rounded">
-                    <span class="ml-2 text-sm font-medium text-gray-700">Apply penalty if not completed satisfactorily?</span>
-                </label>
-            </div>
-             <div class="mb-4" id="punishment-value-group" style="display: none;"> {# Initially hidden #}
-                <label for="punishment_value" class="block text-sm font-medium text-gray-700">Penalty Amount ($) <span class="text-xs text-gray-500">(Defaults to 50% of Reward)</span></label>
-                <input type="number" id="punishment_value" name="punishment_value" step="0.01" min="0"
-                       class="mt-1 focus:ring-orange-500 focus:border-orange-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 bg-gray-50" placeholder="e.g., 2.50">
-            </div>
-            <button type="submit" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">Add Task</button>
+            <div class="mb-4"> <label for="assigned_kid_username" class="block text-sm font-medium text-gray-700">Assign to Kid</label> <select id="assigned_kid_username" name="assigned_kid_username" required class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"> <option value="" disabled selected>Select your kid</option> {% for kid in kids %} <option value="{{ kid.username }}">{{ kid.username }}</option> {% else %} <option value="" disabled>No kids added yet</option> {% endfor %} </select> </div> <div class="mb-4"> <label for="description" class="block text-sm font-medium text-gray-700">Description</label> <textarea id="description" name="description" rows="2" required maxlength="1000" class="mt-1 shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-2"></textarea> </div> <div class="mb-4"> <label for="monetary_value" class="block text-sm font-medium text-gray-700">Reward Value ($)</label> <input type="number" id="monetary_value" name="monetary_value" required step="0.01" min="0" class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="e.g., 5.00"> </div> <div class="mb-4"> <label for="deadline" class="block text-sm font-medium text-gray-700">Deadline</label> <input type="datetime-local" id="deadline" name="deadline" required class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2"> </div> <div class="mb-4 border-t pt-4 mt-4"> <label class="flex items-center"> <input type="checkbox" id="has_punishment" name="has_punishment" value="true" class="form-checkbox h-5 w-5 text-orange-600 rounded"> <span class="ml-2 text-sm font-medium text-gray-700">Apply penalty if not completed satisfactorily?</span> </label> </div> <div class="mb-4" id="punishment-value-group" style="display: none;"> <label for="punishment_value" class="block text-sm font-medium text-gray-700">Penalty Amount ($) <span class="text-xs text-gray-500">(Defaults to 50% of Reward)</span></label> <input type="number" id="punishment_value" name="punishment_value" step="0.01" min="0" class="mt-1 focus:ring-orange-500 focus:border-orange-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 bg-gray-50" placeholder="e.g., 2.50"> </div> <button type="submit" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">Add Task</button>
         </form>
     </div>
 
     <div class="bg-white p-6 rounded-lg shadow-md md:col-span-1">
         <h2 class="text-xl font-semibold mb-4 text-gray-700">Deduct Money (Manual)</h2>
          <form action="{{ url_for('deduct_money') }}" method="POST">
-             <div class="mb-4">
-                <label for="deduct_kid_username" class="block text-sm font-medium text-gray-700">Select Kid</label>
-                <select id="deduct_kid_username" name="deduct_kid_username" required class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md">
-                     <option value="" disabled selected>Select your kid</option>
-                    {% for kid in kids %}
-                    <option value="{{ kid.username }}">{{ kid.username }}</option>
-                     {% else %}
-                    <option value="" disabled>No kids added yet</option>
-                    {% endfor %}
-                </select>
-            </div>
-             <div class="mb-4">
-                <label for="deduct_amount" class="block text-sm font-medium text-gray-700">Amount ($)</label>
-                <input type="number" id="deduct_amount" name="deduct_amount" required step="0.01" min="0.01" class="mt-1 focus:ring-orange-500 focus:border-orange-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="e.g., 10.50">
-            </div>
-             <div class="mb-4">
-                <label for="deduct_category" class="block text-sm font-medium text-gray-700">Category</label>
-                 <select id="deduct_category" name="deduct_category" required class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md">
-                    <option value="spending">Spending</option>
-                    <option value="investment">Investment</option>
-                    </select>
-            </div>
-             <div class="mb-4">
-                <label for="deduct_description" class="block text-sm font-medium text-gray-700">Description (Opt)</label>
-                <input type="text" id="deduct_description" name="deduct_description" maxlength="200" class="mt-1 focus:ring-orange-500 focus:border-orange-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="e.g., Bought a toy">
-            </div>
-             <button type="submit" class="w-full bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">Record Manual Deduction</button>
+             <div class="mb-4"> <label for="deduct_kid_username" class="block text-sm font-medium text-gray-700">Select Kid</label> <select id="deduct_kid_username" name="deduct_kid_username" required class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"> <option value="" disabled selected>Select your kid</option> {% for kid in kids %} <option value="{{ kid.username }}">{{ kid.username }}</option> {% else %} <option value="" disabled>No kids added yet</option> {% endfor %} </select> </div> <div class="mb-4"> <label for="deduct_amount" class="block text-sm font-medium text-gray-700">Amount ($)</label> <input type="number" id="deduct_amount" name="deduct_amount" required step="0.01" min="0.01" class="mt-1 focus:ring-orange-500 focus:border-orange-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="e.g., 10.50"> </div> <div class="mb-4"> <label for="deduct_category" class="block text-sm font-medium text-gray-700">Category</label> <select id="deduct_category" name="deduct_category" required class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"> <option value="spending">Spending</option> <option value="investment">Investment</option> </select> </div> <div class="mb-4"> <label for="deduct_description" class="block text-sm font-medium text-gray-700">Description (Opt)</label> <input type="text" id="deduct_description" name="deduct_description" maxlength="200" class="mt-1 focus:ring-orange-500 focus:border-orange-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="e.g., Bought a toy"> </div> <button type="submit" class="w-full bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded transition duration-150 ease-in-out">Record Manual Deduction</button>
         </form>
     </div>
 </div>
@@ -131,78 +83,32 @@
         <ul class="divide-y divide-gray-200">
             {% for task in tasks %}
             {# Determine background color based on status #}
-            {% set bg_color = 'bg-white' %}
-            {% if task.status == 'complete' %}
-                {% set bg_color = 'bg-green-50' %}
-            {% elif task.status == 'failed' %}
-                {% set bg_color = 'bg-red-50' %}
-            {% elif task.status == 'incomplete' %}
-                {% set bg_color = 'bg-yellow-50' %}
-            {% endif %}
-
+            {% set bg_color = 'bg-white' %} {% if task.status == 'complete' %}{% set bg_color = 'bg-green-50' %}{% elif task.status == 'failed' %}{% set bg_color = 'bg-red-50' %}{% elif task.status == 'incomplete' %}{% set bg_color = 'bg-yellow-50' %}{% endif %}
             <li class="px-4 py-4 sm:px-6 {{ bg_color }}">
                 <div class="flex items-center justify-between flex-wrap">
                     <div class="truncate flex-grow mr-4 mb-2 sm:mb-0">
-                        <div class="flex text-sm">
-                             <p class="text-gray-900 font-medium">Task for {{ task.assigned_kid_username }}</p>
-                        </div>
-                        <div class="mt-1 flex items-center text-sm text-gray-700">
-                            <p class="truncate">{{ task.description }}</p>
-                        </div>
-                         <div class="mt-1 text-xs text-gray-500">
-                            Reward: {{ task.monetary_value | currencyformat }}
-                            {% if task.has_punishment and task.punishment_value %}
-                            | Penalty: {{ task.punishment_value | currencyformat }}
-                            {% endif %}
-                            | Deadline: {{ task.deadline_datetime | datetimeformat('%Y-%m-%d %H:%M') }}
-                         </div>
+                        <div class="flex text-sm"> <p class="text-gray-900 font-medium">Task for {{ task.assigned_kid_username }}</p> </div>
+                        <div class="mt-1 flex items-center text-sm text-gray-700"> <p class="truncate">{{ task.description }}</p> </div>
+                        <div class="mt-1 text-xs text-gray-500"> Reward: {{ task.monetary_value | currencyformat }} {% if task.has_punishment and task.punishment_value %}| Penalty: {{ task.punishment_value | currencyformat }} {% endif %} | Deadline: {{ task.deadline_datetime | datetimeformat('%Y-%m-%d %H:%M') }} </div>
                     </div>
                     <div class="ml-0 sm:ml-4 flex-shrink-0 flex items-center space-x-2 flex-wrap">
                         {# --- INCOMPLETE Tasks --- #}
                         {% if task.status == 'incomplete' %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 whitespace-nowrap mb-1 sm:mb-0">
-                                Incomplete
-                            </span>
-                            <form action="{{ url_for('mark_complete', task_id=task._id) }}" method="POST" class="inline-block mb-1 sm:mb-0">
-                                <select name="completion_level" required class="text-xs rounded border-gray-300 py-1 px-2 focus:ring-blue-500 focus:border-blue-500 align-middle">
-                                    <option value="100">100%</option>
-                                    <option value="50">50%</option>
-                                    <option value="25">25%</option>
-                                </select>
-                                <button type="submit" class="text-xs bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded transition duration-150 ease-in-out align-middle">
-                                    Mark Done
-                                </button>
-                            </form>
-                            <form action="{{ url_for('mark_failed', task_id=task._id) }}" method="POST" class="inline-block mb-1 sm:mb-0" onsubmit="return confirm('Are you sure you want to mark this task as failed? {% if task.has_punishment and task.punishment_value %}A penalty of {{ task.punishment_value | currencyformat }} will be applied.{% endif %}');">
-                                <button type="submit" class="text-xs bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded transition duration-150 ease-in-out align-middle">
-                                    Mark Failed
-                                </button>
-                            </form>
-                            <form action="{{ url_for('delete_task', task_id=task._id) }}" method="POST" class="inline-block mb-1 sm:mb-0" onsubmit="return confirm('Delete this incomplete task?');">
-                                <button type="submit" class="text-xs bg-gray-500 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded transition duration-150 ease-in-out align-middle">
-                                    Delete
-                                </button>
-                            </form>
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 whitespace-nowrap mb-1 sm:mb-0"> Incomplete </span>
+                            {# Edit Button (NEW) #}
+                            <a href="{{ url_for('edit_task', task_id=task._id) }}" class="text-xs bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded transition duration-150 ease-in-out align-middle mb-1 sm:mb-0"> Edit </a>
+                            {# Mark Complete Form #}
+                            <form action="{{ url_for('mark_complete', task_id=task._id) }}" method="POST" class="inline-block mb-1 sm:mb-0"> <select name="completion_level" required class="text-xs rounded border-gray-300 py-1 px-2 focus:ring-blue-500 focus:border-blue-500 align-middle"> <option value="100">100%</option> <option value="50">50%</option> <option value="25">25%</option> </select> <button type="submit" class="text-xs bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded transition duration-150 ease-in-out align-middle"> Mark Done </button> </form>
+                            {# Mark Failed Form #}
+                            <form action="{{ url_for('mark_failed', task_id=task._id) }}" method="POST" class="inline-block mb-1 sm:mb-0" onsubmit="return confirm('Mark task as failed? {% if task.has_punishment and task.punishment_value %}Penalty: {{ task.punishment_value | currencyformat }}{% endif %}');"> <button type="submit" class="text-xs bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded transition duration-150 ease-in-out align-middle"> Mark Failed </button> </form>
+                            {# Delete Form #}
+                            <form action="{{ url_for('delete_task', task_id=task._id) }}" method="POST" class="inline-block mb-1 sm:mb-0" onsubmit="return confirm('Delete this incomplete task?');"> <button type="submit" class="text-xs bg-gray-500 hover:bg-gray-700 text-white font-bold py-1 px-2 rounded transition duration-150 ease-in-out align-middle"> Delete </button> </form>
                         {# --- COMPLETE Tasks --- #}
                         {% elif task.status == 'complete' %}
-                             <div class="text-right">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 whitespace-nowrap">
-                                    Complete ({{ task.completion_level }}%)
-                                </span>
-                                 <p class="text-xs text-gray-600 mt-1">Earned: <span class="font-medium text-green-700">{{ task.calculated_payment | currencyformat }}</span></p>
-                                 <p class="text-xs text-gray-500 mt-1">Completed: {{ task.completion_datetime | datetimeformat('%Y-%m-%d %H:%M') }}</p>
-                             </div>
+                             <div class="text-right"> <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 whitespace-nowrap"> Complete ({{ task.completion_level }}%) </span> <p class="text-xs text-gray-600 mt-1">Earned: <span class="font-medium text-green-700">{{ task.calculated_payment | currencyformat }}</span></p> <p class="text-xs text-gray-500 mt-1">Completed: {{ task.completion_datetime | datetimeformat('%Y-%m-%d %H:%M') }}</p> </div>
                         {# --- FAILED Tasks --- #}
                         {% elif task.status == 'failed' %}
-                             <div class="text-right">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 whitespace-nowrap">
-                                    Failed
-                                </span>
-                                {% if task.has_punishment and task.punishment_value %}
-                                    <p class="text-xs text-red-600 mt-1">Penalty Applied: {{ task.punishment_value | currencyformat }}</p>
-                                {% endif %}
-                                 <p class="text-xs text-gray-500 mt-1">Marked: {{ task.completion_datetime | datetimeformat('%Y-%m-%d %H:%M') }}</p> {# Using completion_datetime for failure time #}
-                             </div>
+                             <div class="text-right"> <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800 whitespace-nowrap"> Failed </span> {% if task.has_punishment and task.punishment_value %} <p class="text-xs text-red-600 mt-1">Penalty Applied: {{ task.punishment_value | currencyformat }}</p> {% endif %} <p class="text-xs text-gray-500 mt-1">Marked: {{ task.completion_datetime | datetimeformat('%Y-%m-%d %H:%M') }}</p> </div>
                         {% endif %}
                     </div>
                 </div>
@@ -215,58 +121,39 @@
     {% endif %}
 </div>
 
-{# JavaScript for Penalty Default Calculation #}
+{# JavaScript for Penalty Default Calculation (Unchanged) #}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const monetaryValueInput = document.getElementById('monetary_value');
         const hasPunishmentCheckbox = document.getElementById('has_punishment');
         const punishmentValueGroup = document.getElementById('punishment-value-group');
         const punishmentValueInput = document.getElementById('punishment_value');
-
-        function updatePenaltyDefault() {
-            if (hasPunishmentCheckbox.checked) {
-                punishmentValueGroup.style.display = 'block'; // Show the input group
-                punishmentValueInput.required = true; // Make required only if checkbox is checked
-
-                const rewardValue = parseFloat(monetaryValueInput.value);
-                if (!isNaN(rewardValue) && rewardValue > 0) {
-                    // Calculate 50% and format to 2 decimal places
-                    const defaultPenalty = (rewardValue * 0.50).toFixed(2);
-                    // Only set default if the input is currently empty or has the old default
-                    // This allows parent to override and keep their value
-                    if (punishmentValueInput.value === '' || punishmentValueInput.dataset.isDefault === 'true') {
-                         punishmentValueInput.value = defaultPenalty;
-                         punishmentValueInput.dataset.isDefault = 'true'; // Mark as default
+        // Ensure elements exist before adding listeners (important if form isn't always present)
+        if (monetaryValueInput && hasPunishmentCheckbox && punishmentValueGroup && punishmentValueInput) {
+            function updatePenaltyDefault() { /* ... same JS logic as before ... */
+                if (hasPunishmentCheckbox.checked) {
+                    punishmentValueGroup.style.display = 'block'; punishmentValueInput.required = true;
+                    const rewardValue = parseFloat(monetaryValueInput.value);
+                    if (!isNaN(rewardValue) && rewardValue > 0) {
+                        const defaultPenalty = (rewardValue * 0.50).toFixed(2);
+                        if (punishmentValueInput.value === '' || punishmentValueInput.dataset.isDefault === 'true') {
+                            punishmentValueInput.value = defaultPenalty; punishmentValueInput.dataset.isDefault = 'true';
+                        } else { punishmentValueInput.dataset.isDefault = 'false'; }
                     } else {
-                         punishmentValueInput.dataset.isDefault = 'false'; // Mark as user-set
+                        if (punishmentValueInput.value === '' || punishmentValueInput.dataset.isDefault === 'true') {
+                            punishmentValueInput.value = ''; punishmentValueInput.dataset.isDefault = 'true';
+                        }
                     }
                 } else {
-                    // Clear default if reward is invalid, but keep input visible
-                     if (punishmentValueInput.value === '' || punishmentValueInput.dataset.isDefault === 'true') {
-                        punishmentValueInput.value = ''; // Clear if reward is invalid
-                        punishmentValueInput.dataset.isDefault = 'true';
-                     }
+                    punishmentValueGroup.style.display = 'none'; punishmentValueInput.required = false;
+                    punishmentValueInput.value = ''; punishmentValueInput.dataset.isDefault = 'false';
                 }
-            } else {
-                punishmentValueGroup.style.display = 'none'; // Hide the input group
-                punishmentValueInput.required = false; // Not required if checkbox is unchecked
-                punishmentValueInput.value = ''; // Clear the value
-                punishmentValueInput.dataset.isDefault = 'false'; // Reset default state marker
             }
+            punishmentValueInput.addEventListener('input', function() { punishmentValueInput.dataset.isDefault = 'false'; });
+            hasPunishmentCheckbox.addEventListener('change', updatePenaltyDefault);
+            monetaryValueInput.addEventListener('input', updatePenaltyDefault);
+            updatePenaltyDefault(); // Initial check
         }
-
-        // Reset default state when user manually types in penalty input
-        punishmentValueInput.addEventListener('input', function() {
-             punishmentValueInput.dataset.isDefault = 'false';
-        });
-
-
-        // Add event listeners
-        hasPunishmentCheckbox.addEventListener('change', updatePenaltyDefault);
-        monetaryValueInput.addEventListener('input', updatePenaltyDefault);
-
-        // Initial check in case the form is pre-filled on page load/reload
-        updatePenaltyDefault();
     });
 </script>
 
