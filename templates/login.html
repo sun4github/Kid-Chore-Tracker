@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Login or Register Parent{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+
+    <div class="bg-white p-6 md:p-8 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold mb-6 text-gray-700">Login (Parent or Kid)</h2>
+        <form action="{{ url_for('login') }}" method="POST">
+            <div class="mb-4">
+                <label for="username" class="block text-gray-700 text-sm font-bold mb-2">Username</label>
+                <input type="text" id="username" name="username" required
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="Enter username">
+            </div>
+            <div class="mb-6"> {# Increased margin bottom #}
+                <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                <input type="password" id="password" name="password" required
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="******************">
+            </div>
+            {# Login type radio buttons removed - role determined from DB #}
+            <div class="flex items-center justify-between mb-4">
+                <button type="submit"
+                        class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out">
+                    Sign In
+                </button>
+            </div>
+             <div class="text-center">
+                 <a href="{{ url_for('forgot_password') }}" class="inline-block align-baseline font-bold text-sm text-blue-500 hover:text-blue-800">
+                    Forgot Parent Password?
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white p-6 md:p-8 rounded-lg shadow-md">
+        <h2 class="text-2xl font-semibold mb-6 text-gray-700">Register New Parent</h2>
+        <form action="{{ url_for('register_parent') }}" method="POST">
+             <div class="mb-4">
+                <label for="reg_username" class="block text-gray-700 text-sm font-bold mb-2">Username</label>
+                <input type="text" id="reg_username" name="reg_username" required minlength="3"
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="Choose a username">
+            </div>
+            <div class="mb-4">
+                <label for="reg_email" class="block text-gray-700 text-sm font-bold mb-2">Email Address</label>
+                <input type="email" id="reg_email" name="reg_email" required
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="your.email@example.com">
+            </div>
+            <div class="mb-6"> {# Increased margin bottom #}
+                <label for="reg_password" class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                <input type="password" id="reg_password" name="reg_password" required minlength="6"
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="Create a password (min 6 chars)">
+            </div>
+             {# Role selection removed - only parents register here #}
+            <div class="flex items-center justify-between">
+                <button type="submit"
+                        class="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-150 ease-in-out">
+                    Register Parent Account
+                </button>
+            </div>
+        </form>
+         {# Kid registration removed from here #}
+    </div>
+
+</div>
+{% endblock %}
