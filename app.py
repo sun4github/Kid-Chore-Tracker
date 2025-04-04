@@ -419,7 +419,7 @@ def kid_dashboard():
         tasks = list(tasks_collection.find({"assigned_kid_username": kid_username}).sort("entry_datetime", -1))
         # NEW: Fetch spending requests and savings goals
         spending_requests = list(spending_requests_collection.find({"kid_username": kid_username}).sort("request_datetime", -1))
-        savings_goals = list(savings_goals_collection.find({"kid_username": kid_username, "status": "active"}).sort("creation_datetime", 1))
+        #savings_goals = list(savings_goals_collection.find({"kid_username": kid_username, "status": "active"}).sort("creation_datetime", 1))
 
         return render_template('kid_dashboard.html',
                                kid_username=kid_username,
