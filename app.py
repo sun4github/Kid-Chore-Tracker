@@ -16,12 +16,12 @@ load_dotenv()
 app = Flask(__name__)
 
 # --- Configuration ---
-# ... (Same as v5) ...
+# ... (Same as v6) ...
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'a_very_weak_default_secret_key_change_me')
 app.config['SECURITY_PASSWORD_SALT'] = os.environ.get('SECURITY_PASSWORD_SALT', 'another_weak_salt_change_me')
 
 # --- Database Setup (MongoDB) ---
-# ... (Same as v5, includes all collections and indexes) ...
+# ... (Same as v6, includes all collections and indexes) ...
 MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
 DB_NAME = 'chore_tracker_db'
 try:
@@ -37,7 +37,7 @@ try:
 except Exception as e: print(f"Error connecting to MongoDB: {e}"); exit()
 
 # --- Email Configuration (Flask-Mail) ---
-# ... (Same as v5) ...
+# ... (Same as v6) ...
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.example.com'); app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587)); app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'; app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'false').lower() == 'true'; app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME'); app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD'); app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
 mail = Mail(app)
 
@@ -71,8 +71,8 @@ def calculate_summaries(kid_username): # ... unchanged ...
 
 # --- Routes ---
 
-# --- Login/Register/Logout/Password Reset Routes (Unchanged from v5) ---
-# ... (These routes remain the same as app_v5.py) ...
+# --- Login/Register/Logout/Password Reset Routes (Unchanged from v6) ---
+# ... (These routes remain the same as app_v6.py) ...
 @app.route('/')
 def index(): # ... unchanged ...
     if 'username' in session:
@@ -153,7 +153,7 @@ def reset_password_with_token(token): # ... unchanged ...
 # --- Parent Routes ---
 
 @app.route('/parent_dashboard')
-def parent_dashboard(): # ... unchanged from v5 ...
+def parent_dashboard(): # ... unchanged from v6 ...
     if 'username' not in session or session.get('role') != 'parent': flash('Please log in as a parent.', 'warning'); return redirect(url_for('login'))
     parent_username = session['username']
     try:
@@ -167,35 +167,80 @@ def parent_dashboard(): # ... unchanged from v5 ...
     except Exception as e: print(f"Error loading parent dashboard: {e}"); flash('Could not load dashboard data.', 'error'); return render_template('parent_dashboard.html', parent_username=parent_username, tasks=[], kids=[], kids_summaries={}, pending_requests=[])
 
 @app.route('/parent/decide_request/<request_id>', methods=['POST'])
-def decide_request(request_id): # ... unchanged from v5 ...
-    if 'username' not in session or session.get('role') != 'parent': flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
-    parent_username = session['username']; decision = request.form.get('decision')
-    if decision not in ['approve', 'deny']: flash('Invalid decision.', 'error'); return redirect(url_for('parent_dashboard'))
+def decide_request(request_id):
+    """Handles parent approval/denial of a spending request."""
+    if 'username' not in session or session.get('role') != 'parent':
+        flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
+
+    parent_username = session['username']
+    decision = request.form.get('decision') # 'approve' or 'deny'
+
+    if decision not in ['approve', 'deny']:
+        flash('Invalid decision.', 'error'); return redirect(url_for('parent_dashboard'))
+
     try:
         spending_request = spending_requests_collection.find_one({"_id": ObjectId(request_id)})
-        if not spending_request: flash('Spending request not found.', 'error'); return redirect(url_for('parent_dashboard'))
+        if not spending_request:
+            flash('Spending request not found.', 'error'); return redirect(url_for('parent_dashboard'))
+
         kid_username = spending_request.get('kid_username')
         kid_user = users_collection.find_one({"username": kid_username, "associated_parent_username": parent_username})
-        if not kid_user or spending_request.get('status') != 'pending': flash('Cannot process this request.', 'error'); return redirect(url_for('parent_dashboard'))
+        if not kid_user or spending_request.get('status') != 'pending':
+            flash('Cannot process this request.', 'error'); return redirect(url_for('parent_dashboard'))
+
         new_status = 'approved' if decision == 'approve' else 'denied'
         update_data = {"status": new_status, "decision_datetime": datetime.now(timezone.utc)}
+
         if decision == 'approve':
-            summaries = calculate_summaries(kid_username); request_amount = Decimal(spending_request['amount'])
+            summaries = calculate_summaries(kid_username)
+            # Ensure request_amount is treated as Decimal
+            request_amount = Decimal('0.00')
+            try:
+                request_amount = Decimal(spending_request['amount'])
+            except (InvalidOperation, TypeError):
+                 flash('Invalid amount in spending request.', 'error')
+                 # Deny the request if amount is invalid
+                 update_data['status'] = 'denied'
+                 spending_requests_collection.update_one({"_id": ObjectId(request_id)}, {"$set": update_data})
+                 return redirect(url_for('parent_dashboard'))
+
             if summaries['balance'] < request_amount:
-                flash(f'Insufficient balance ({summaries["balance"] | currencyformat}) to approve request for {request_amount | currencyformat}. Denied.', 'error')
-                update_data['status'] = 'denied'
+                # --- FIX: Pre-format strings for flash message ---
+                try:
+                    balance_str = "${:,.2f}".format(summaries['balance'])
+                    request_amount_str = "${:,.2f}".format(request_amount)
+                except Exception: # Fallback if formatting fails for some reason
+                    balance_str = "N/A"
+                    request_amount_str = "N/A"
+
+                # Use the pre-formatted strings in the flash message
+                flash(f'Insufficient balance ({balance_str}) to approve request for {request_amount_str}. Request denied.', 'error')
+                # --- END FIX ---
+
+                update_data['status'] = 'denied' # Override status to denied
                 spending_requests_collection.update_one({"_id": ObjectId(request_id)}, {"$set": update_data})
             else:
+                # Sufficient balance: Update request status and create deduction
                 spending_requests_collection.update_one({"_id": ObjectId(request_id)}, {"$set": update_data})
-                new_deduction = {"parent_username": parent_username, "kid_username": kid_username, "amount": spending_request['amount'], "category": "spending", "deduction_datetime": datetime.now(timezone.utc), "description": f"Approved spending request: {spending_request.get('reason', 'No reason given')[:50]}"}
-                deductions_collection.insert_one(new_deduction); flash(f'Spending request for {kid_username} approved!', 'success')
+                new_deduction = {
+                    "parent_username": parent_username, "kid_username": kid_username,
+                    "amount": spending_request['amount'], "category": "spending",
+                    "deduction_datetime": datetime.now(timezone.utc),
+                    "description": f"Approved spending request: {spending_request.get('reason', 'No reason given')[:50]}"
+                }
+                deductions_collection.insert_one(new_deduction)
+                flash(f'Spending request for {kid_username} approved!', 'success')
         else: # Deny
             spending_requests_collection.update_one({"_id": ObjectId(request_id)}, {"$set": update_data})
             flash(f'Spending request for {kid_username} denied.', 'info')
-    except Exception as e: print(f"Error deciding request {request_id}: {e}"); flash('An error occurred processing the request.', 'error')
+
+    except Exception as e:
+        print(f"Error deciding request {request_id}: {e}"); flash('An error occurred processing the request.', 'error')
+
     return redirect(url_for('parent_dashboard'))
 
-# --- Other Parent Routes (Unchanged from v4) ---
+
+# --- Other Parent Routes (Unchanged from v6) ---
 @app.route('/add_kid', methods=['POST'])
 def add_kid(): # ... unchanged ...
     if 'username' not in session or session.get('role') != 'parent': flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
@@ -336,53 +381,30 @@ def deduct_money(): # ... unchanged ...
     return redirect(url_for('parent_dashboard'))
 
 # --- Kid Routes ---
-
 @app.route('/kid_dashboard')
-def kid_dashboard():
-    """Displays the kid dashboard with tasks, requests, and goals (calculates goal progress)."""
-    if 'username' not in session or session.get('role') != 'kid':
-        flash('Please log in as a kid.', 'warning'); return redirect(url_for('login'))
-    kid_username = session['username']
-    kid_user = users_collection.find_one({"username": kid_username, "role": "kid"})
-    if not kid_user or not kid_user.get('associated_parent_username'):
-         flash('Account not configured.', 'error'); session.clear(); return redirect(url_for('login'))
+def kid_dashboard(): # ... unchanged from v6 ...
+    if 'username' not in session or session.get('role') != 'kid': flash('Please log in as a kid.', 'warning'); return redirect(url_for('login'))
+    kid_username = session['username']; kid_user = users_collection.find_one({"username": kid_username, "role": "kid"})
+    if not kid_user or not kid_user.get('associated_parent_username'): flash('Account not configured.', 'error'); session.clear(); return redirect(url_for('login'))
     try:
         summaries = calculate_summaries(kid_username)
         tasks = list(tasks_collection.find({"assigned_kid_username": kid_username}).sort("entry_datetime", -1))
         spending_requests = list(spending_requests_collection.find({"kid_username": kid_username}).sort("request_datetime", -1))
         savings_goals = list(savings_goals_collection.find({"kid_username": kid_username, "status": "active"}).sort("creation_datetime", 1))
-
-        # --- NEW: Calculate progress for each goal ---
         current_balance = summaries.get('balance', Decimal('0.00'))
         for goal in savings_goals:
             progress = 0
             try:
-                target_amount_str = goal.get('target_amount', '0')
-                target_decimal = Decimal(target_amount_str)
+                target_amount_str = goal.get('target_amount', '0'); target_decimal = Decimal(target_amount_str)
                 if target_decimal > Decimal('0.00'):
-                    # Ensure balance is Decimal (should be from calculate_summaries)
                     balance_decimal = current_balance if isinstance(current_balance, Decimal) else Decimal('0.00')
-                    # Calculate progress
-                    raw_progress = (balance_decimal / target_decimal) * 100
-                    progress = int(raw_progress.to_integral_value(rounding=ROUND_HALF_UP)) # Round normally
-                    progress = max(0, min(progress, 100)) # Clamp between 0 and 100
-            except (InvalidOperation, ValueError, TypeError) as calc_e:
-                print(f"Error calculating progress for goal {goal.get('_id')}: {calc_e}")
-                progress = 0 # Default to 0 on error
-            goal['progress'] = progress # Add progress to the goal dictionary
-        # --- END CALCULATION ---
+                    raw_progress = (balance_decimal / target_decimal) * 100; progress = int(raw_progress.to_integral_value(rounding=ROUND_HALF_UP)); progress = max(0, min(progress, 100))
+            except (InvalidOperation, ValueError, TypeError) as calc_e: print(f"Error calculating progress for goal {goal.get('_id')}: {calc_e}"); progress = 0
+            goal['progress'] = progress
+        return render_template('kid_dashboard.html', kid_username=kid_username, summaries=summaries, tasks=tasks, spending_requests=spending_requests, savings_goals=savings_goals)
+    except Exception as e: print(f"Error loading kid dashboard: {e}"); flash('Could not load dashboard data.', 'error'); return render_template('kid_dashboard.html', kid_username=kid_username, summaries=calculate_summaries(kid_username), tasks=[], spending_requests=[], savings_goals=[])
 
-        return render_template('kid_dashboard.html',
-                               kid_username=kid_username,
-                               summaries=summaries,
-                               tasks=tasks,
-                               spending_requests=spending_requests,
-                               savings_goals=savings_goals) # Pass goals with progress
-    except Exception as e:
-        print(f"Error loading kid dashboard: {e}"); flash('Could not load dashboard data.', 'error')
-        return render_template('kid_dashboard.html', kid_username=kid_username, summaries=calculate_summaries(kid_username), tasks=[], spending_requests=[], savings_goals=[])
-
-# --- Kid Spending Request Route (Unchanged from v5) ---
+# --- Kid Spending Request Route (Unchanged from v6) ---
 @app.route('/kid/request_spending', methods=['POST'])
 def request_spending(): # ... unchanged ...
     if 'username' not in session or session.get('role') != 'kid': flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
@@ -398,7 +420,7 @@ def request_spending(): # ... unchanged ...
     except Exception as e: print(f"Error submitting spending request for {kid_username}: {e}"); flash('Error submitting request.', 'error')
     return redirect(url_for('kid_dashboard'))
 
-# --- Kid Savings Goal Routes (Unchanged from v5) ---
+# --- Kid Savings Goal Routes (Unchanged from v6) ---
 @app.route('/kid/add_goal', methods=['POST'])
 def add_goal(): # ... unchanged ...
     if 'username' not in session or session.get('role') != 'kid': flash('Unauthorized access.', 'error'); return redirect(url_for('login'))
@@ -437,5 +459,5 @@ def currencyformat(value): # ... unchanged ...
 
 # --- Run Application ---
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True) # Set debug=False for production
 
