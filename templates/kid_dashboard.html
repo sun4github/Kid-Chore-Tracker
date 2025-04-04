@@ -8,7 +8,7 @@
 <div class="mb-8">
     <h2 class="text-2xl font-semibold mb-4 text-gray-700">Your Earnings Summary</h2>
      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {# ... summary cards remain the same as v3 ... #}
+        {# ... summary cards remain the same as v4 ... #}
         <div class="bg-white p-4 rounded-lg shadow"> <h3 class="text-lg font-semibold text-blue-700 mb-2">Total Balance</h3> <p class="text-2xl font-bold text-black">{{ summaries.get('balance') | currencyformat }}</p> </div>
         <div class="bg-white p-4 rounded-lg shadow"> <h3 class="text-lg font-semibold text-green-700 mb-2">Total Earned</h3> <p class="text-xl font-medium text-green-800">{{ summaries.get('earned') | currencyformat }}</p> </div>
         <div class="bg-white p-4 rounded-lg shadow"> <h3 class="text-lg font-semibold text-red-700 mb-2">Total Spent</h3> <p class="text-xl font-medium text-red-800">{{ summaries.get('spent') | currencyformat }}</p> </div>
@@ -37,41 +37,11 @@
     <h2 class="text-2xl font-semibold mb-4 text-gray-700">Your Savings Goals</h2>
     {% if savings_goals %}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {# Ensure summaries and balance exist #}
+        {# Get current balance once outside the loop #}
         {% set current_balance = summaries.get('balance', Decimal('0.00')) %}
         {% for goal in savings_goals %}
-            {# --- MODIFIED CALCULATION --- #}
-            {% set progress = 0 %}
-            {% set target_str = goal.target_amount | default('0', true) %}
-            {% Try converting target_amount string directly to Decimal %}
-            {% set target_decimal = namespace(value=Decimal('0.00')) %}
-            {% if target_str %}
-                {% try %}
-                    {% set target_decimal.value = target_str | decimal %}
-                {% catch %}
-                    {# Handle potential conversion error if target_amount is not a valid decimal string #}
-                    {% set target_decimal.value = Decimal('0.00') %}
-                {% endtry %}
-            {% endif %}
-
-            {% if target_decimal.value > Decimal('0.00') %}
-                {# Ensure current_balance is Decimal before division #}
-                {% set balance_decimal = namespace(value=Decimal('0.00')) %}
-                 {% try %}
-                    {% set balance_decimal.value = current_balance | decimal %}
-                 {% catch %}
-                     {# Handle case where balance might not be Decimal - should not happen with calculate_summaries #}
-                     {% set balance_decimal.value = Decimal('0.00') %}
-                 {% endtry %}
-
-                {# Perform division using Decimals #}
-                {% set raw_progress = (balance_decimal.value / target_decimal.value) * 100 %}
-                {% set progress = raw_progress | round(0, 'floor') | int %} {# Use floor rounding #}
-
-                {% if progress > 100 %}{% set progress = 100 %}{% endif %} {# Cap at 100% #}
-                {% if progress < 0 %}{% set progress = 0 %}{% endif %} {# Floor at 0% #}
-            {% endif %}
-            {# --- END MODIFIED CALCULATION --- #}
+            {# Get pre-calculated progress from the backend #}
+            {% set progress = goal.progress | default(0) %}
 
             <div class="bg-white p-4 rounded-lg shadow border border-gray-200 relative">
                  {# Delete Button #}
@@ -84,7 +54,7 @@
                 <h3 class="text-lg font-semibold text-teal-700 mb-2 pr-6">{{ goal.goal_name }}</h3>
                 <p class="text-sm text-gray-700 mb-1">Target: <span class="font-medium">{{ goal.target_amount | currencyformat }}</span></p>
                 <p class="text-sm text-gray-700 mb-2">Current Balance: <span class="font-medium">{{ current_balance | currencyformat }}</span></p>
-                {# Progress Bar #}
+                {# Progress Bar - uses pre-calculated goal.progress #}
                 <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
                     <div class="bg-teal-500 h-2.5 rounded-full" style="width: {{ progress }}%"></div>
                 </div>
