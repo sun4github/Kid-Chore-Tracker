@@ -37,8 +37,8 @@
     <h2 class="text-2xl font-semibold mb-4 text-gray-700">Your Savings Goals</h2>
     {% if savings_goals %}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {# Get current balance once outside the loop #}
-        {% set current_balance = summaries.get('balance', Decimal('0.00')) %}
+        {# Get current balance once outside the loop #}        
+        {% set current_balance = summaries.get('balance', 0) %}
         {% for goal in savings_goals %}
             {# Get pre-calculated progress from the backend #}
             {% set progress = goal.progress | default(0) %}
